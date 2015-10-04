@@ -1,0 +1,149 @@
+<html>
+  <head>
+
+	
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.13.3/react.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/0.13.3/JSXTransformer.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.7.0/underscore.js"></script>
+    <script src="https://www.dropbox.com/static/api/dropbox-datastores-1.0-latest.js"></script>
+	<script type="text/jsx">
+	// Server-side applications use both the API key and secret.
+var client = new Dropbox.Client({ key: "iw72e8h12k9vf6s" });	
+var data2;
+
+// Попытка завершить OAuth авторизацию.
+client.authenticate(function(error, client) {
+  if (error) {
+    return showError(error);
+  }
+});
+
+client.readFile("comment.json", function(error, data) {
+  if (error) {
+    return showError(error);  
+  } 
+	client.data = data;
+	data2 = data;
+	firstfunc();
+  });
+
+	
+var firstfunc = function() {
+	
+		var Comment = React.createClass({
+	    	handleRemoveCommentClick: function(e) {
+	    		var that = this;
+	    		var d = $.Deferred();
+				d.resolve();
+				var deleteCommentPromise = d.promise();
+	    		deleteCommentPromise.done(function() {
+	    			if (_.isFunction(that.props.onCommentRemove)) {
+	    				that.props.onCommentRemove(that.props);
+	    			} 
+	    		});
+	    	},
+			render: function() {
+				return (
+					<div className="comment">
+						<p className="commentAuthor"><strong>{this.props.author}</strong></p>
+						{this.props.children} 
+						<div>							
+							<a href="#" onClick={this.handleRemoveCommentClick}>Удалить запись</a>
+							<hr/>
+						</div>
+					</div>
+				);
+			}
+		});
+
+		var EditCommentForm = React.createClass({
+			getInitialState: function() {
+				return {
+					id: 0,
+					Author: '',
+					Text: '',
+				}
+			},
+			saveCommentClick: function() {
+				if (_.isFunction(this.props.onSave)) {
+					this.props.onSave(this.state);
+				}
+				this.setState(this.getInitialState());
+			},
+			handleChange: function(event) {
+				var el = $(event.target);
+				this.state[el.prop('name')] = el.val();
+				this.forceUpdate();
+			},
+			render: function() {
+				return (
+					<div>
+						<div>Тема</div>
+						<div>
+							<input type="text" value={this.state.Author} name="Author" onChange={this.handleChange} />
+						</div>
+						<div>Комментарий</div>
+						<div>
+							<textarea value={this.state.Text} name="Text" onChange={this.handleChange} />
+						</div>
+						<div>
+							<button submit="false" onClick={this.saveCommentClick}>Добавить запись</button>
+						</div>
+					</div>
+				);
+			}
+		});
+
+		var CommentsForm = React.createClass({
+			getInitialState: function() {
+				return { 
+					comments: [],
+				};
+			},
+	    	componentDidMount: function() {
+    			this.setState({comments: jQuery.parseJSON(data2)});
+	    	},
+	    	addNewComment: function(newComment) {
+	    		var comments = this.state.comments;
+	    		newComment.id = comments[comments.length - 1].id + 1;
+	    		comments.push(newComment);
+	    		this.forceUpdate();
+				client.writeFile('comment.json', JSON.stringify(comments), function () { })
+	    	},
+	    	removeComment: function(removedComment) {
+				var newData = _.filter(this.state.comments, function(comment) {return comment.id !== removedComment.id})
+				this.setState({
+					comments: newData
+				});
+				client.writeFile('comment.json', JSON.stringify(newData), function () { })
+	    	},
+			render: function() {
+				var index=0;
+				var commentsList = this.state.comments.map(function(comment,index) {
+					return <Comment id={comment.id} author={comment.Author} onCommentRemove={this.removeComment} key={index}>{comment.Text}</Comment>
+				}, this);
+				return (
+					<div>
+						<h2>Вывод записей</h2>
+							{commentsList}
+							<EditCommentForm onSave={this.addNewComment} />
+					</div>
+				);
+			},
+		});
+
+		React.render(
+			<CommentsForm />,
+			document.getElementById('content')
+		);
+		
+}
+    </script>
+  </head>
+  <body>
+    <div id="content"></div>
+  </body>
+</html>
